@@ -1,6 +1,6 @@
 """
 QuantumFlow Elite Bybit Bot - Configuration
-Last Updated: 2025-03-29 18:13:19 UTC
+Last Updated: 2025-03-29 18:36:01 UTC
 Author: chibueze2345
 Version: 2.1.0
 """
@@ -15,7 +15,7 @@ ENV_TYPE = 'TESTNET' if USE_TESTNET else 'MAINNET'
 # Bot Version
 VERSION = '2.1.0'
 CREATOR = 'chibueze2345'
-LAST_UPDATED = '2025-03-29 18:13:19'
+LAST_UPDATED = '2025-03-29 18:36:01'
 
 # API Configuration
 API_CONFIG = {

@@ -1,5 +1,5 @@
 # QuantumFlow Elite Bybit Bot
-Last Updated: 2025-03-29 18:13:19 UTC
+Last Updated: 2025-03-29 18:36:01 UTC
 Author: chibueze2345
 Version: 2.1.0
 
@@ -44,11 +44,11 @@ Advanced Bybit trading bot with Telegram integration and dynamic risk management
 
 ### 5. Set Repository Secrets
 Go to Settings > Secrets > Actions and add:
-- TELEGRAM_BOT_TOKEN
-- TELEGRAM_CHAT_ID
-- GITHUB_TOKEN
-- BYBIT_API_KEY
-- BYBIT_API_SECRET
+- TELEGRAM_BOT_TOKEN    (from Telegram BotFather)
+- TELEGRAM_CHAT_ID      (from getUpdates API call)
+- GH_PAT               (from GitHub Settings > Developer Settings > Personal Access Tokens)
+- BYBIT_API_KEY        (from Bybit API Management)
+- BYBIT_API_SECRET     (from Bybit API Management)
 
 ### 6. Enable GitHub Actions
 1. Go to Actions tab
