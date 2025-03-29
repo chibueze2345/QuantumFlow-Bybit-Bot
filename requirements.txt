@@ -1,5 +1,5 @@
 # API and Trading
-python-bybit==3.0.0
+pybit>=5.0.0
 ccxt>=2.0.0
 
 # Data Processing
