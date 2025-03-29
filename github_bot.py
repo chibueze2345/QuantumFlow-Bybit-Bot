@@ -1,6 +1,6 @@
 """
 QuantumFlow Elite Bybit Bot - Main Bot File
-Last Updated: 2025-03-29 18:56:09 UTC
+Last Updated: 2025-03-29 19:00:46 UTC
 Author: chibueze2345
 Version: 2.1.0
 """
@@ -31,10 +31,9 @@ logger = logging.getLogger(__name__)
 
 class QuantumFlowBot:
     def __init__(self):
-        # Bot metadata
         self.VERSION = '2.1.0'
         self.CREATOR = 'chibueze2345'
-        self.LAST_UPDATED = '2025-03-29 18:56:09'
+        self.LAST_UPDATED = '2025-03-29 19:00:46'
         
         # Initialize bot configuration
         self.telegram_token = os.environ.get('TELEGRAM_BOT_TOKEN')
@@ -55,48 +54,124 @@ class QuantumFlowBot:
             'last_update': self.LAST_UPDATED
         }
         
-        # Add running flag
         self.running = False
-        
-        # Initialize application to None
         self.app = None
 
     async def initialize(self):
         """Initialize the bot application"""
-        self.app = Application.builder().token(self.telegram_token).build()
-        await self.app.initialize()
-        self.register_commands()
+        try:
+            self.app = Application.builder().token(self.telegram_token).build()
+            await self.app.initialize()
+            await self.register_commands()
+            logger.info("Bot initialized successfully")
+        except Exception as e:
+            logger.error(f"Initialization error: {str(e)}")
+            raise
 
-    def register_commands(self):
+    async def register_commands(self):
         """Register all command handlers"""
         if not self.app:
             raise RuntimeError("Application not initialized")
+        
+        # Define command handlers
+        async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+            message = (
+                "🤖 *Welcome to QuantumFlow Elite Bot*\n\n"
+                f"Version: {self.VERSION}\n"
+                f"Last Updated: {self.LAST_UPDATED} UTC\n\n"
+                "Available commands:\n"
+                "/balance - Check your balance\n"
+                "/status - View current status\n"
+                "/positions - View open positions\n"
+                "/version - Show version info\n"
+                "/help - Show this help message\n\n"
+                "Bot Status: Active ✅"
+            )
+            await update.message.reply_text(message, parse_mode='Markdown')
+
+        async def cmd_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
+            balance = self.state.get('balance', 0.0)
+            message = (
+                "💰 *Balance Information*\n\n"
+                f"Current Balance: ${balance:,.2f}\n"
+                f"Time: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC"
+            )
+            await update.message.reply_text(message, parse_mode='Markdown')
+
+        async def cmd_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
+            status = {
+                'time': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
+                'balance': self.state.get('balance', 0.0),
+                'positions': len(self.state.get('positions', {})),
+                'daily_trades': self.state.get('daily_trades', 0),
+                'pnl': self.state.get('pnl', 0.0)
+            }
             
+            message = (
+                "📊 *Current Status*\n\n"
+                f"🕒 Time: {status['time']} UTC\n"
+                f"💰 Balance: ${status['balance']:,.2f}\n"
+                f"📈 Open Positions: {status['positions']}\n"
+                f"🎯 Today's Trades: {status['daily_trades']}\n"
+                f"📗 P/L: ${status['pnl']:,.2f}"
+            )
+            await update.message.reply_text(message, parse_mode='Markdown')
+
+        async def cmd_positions(update: Update, context: ContextTypes.DEFAULT_TYPE):
+            positions = self.state.get('positions', {})
+            
+            if not positions:
+                await update.message.reply_text("📈 No open positions currently.")
+                return
+                
+            message = "📊 *Open Positions*\n\n"
+            for symbol, pos in positions.items():
+                message += (
+                    f"*{symbol}*\n"
+                    f"Side: {pos.get('side', 'N/A')}\n"
+                    f"Size: {pos.get('size', 0)}\n"
+                    f"Entry: ${pos.get('entry_price', 0):,.2f}\n\n"
+                )
+            
+            await update.message.reply_text(message, parse_mode='Markdown')
+
+        async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
+            help_message = (
+                "🤖 *QuantumFlow Elite Bot Help*\n\n"
+                "*Available Commands:*\n"
+                "/start - Start the bot\n"
+                "/balance - Check your balance\n"
+                "/status - View current status\n"
+                "/positions - View open positions\n"
+                "/version - Show version info\n"
+                "/help - Show this help message\n\n"
+                f"For support, contact: @{self.CREATOR}"
+            )
+            await update.message.reply_text(help_message, parse_mode='Markdown')
+
+        async def cmd_version(update: Update, context: ContextTypes.DEFAULT_TYPE):
+            message = (
+                "🤖 *QuantumFlow Elite Bot Version Info*\n\n"
+                f"Version: {self.VERSION}\n"
+                f"Creator: @{self.CREATOR}\n"
+                f"Last Updated: {self.LAST_UPDATED} UTC\n"
+                f"Current Time: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC"
+            )
+            await update.message.reply_text(message, parse_mode='Markdown')
+
+        # Register commands
         commands = [
-            ('start', self.cmd_start, 'Start the bot'),
-            ('balance', self.cmd_balance, 'Check balance'),
-            ('status', self.cmd_status, 'Check status'),
-            ('positions', self.cmd_positions, 'View positions'),
-            ('help', self.cmd_help, 'Show help'),
-            ('version', self.cmd_version, 'Show version info')
+            ('start', cmd_start),
+            ('balance', cmd_balance),
+            ('status', cmd_status),
+            ('positions', cmd_positions),
+            ('help', cmd_help),
+            ('version', cmd_version)
         ]
         
-        for command, handler, description in commands:
+        for command, handler in commands:
             self.app.add_handler(CommandHandler(command, handler))
             logger.info(f"Registered command: /{command}")
-
-    async def cmd_version(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Handle /version command"""
-        message = (
-            "🤖 *QuantumFlow Elite Bot Version Info*\n\n"
-            f"Version: {self.VERSION}\n"
-            f"Creator: @{self.CREATOR}\n"
-            f"Last Updated: {self.LAST_UPDATED} UTC\n"
-            f"Current Time: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC"
-        )
-        await update.message.reply_text(message, parse_mode='Markdown')
-
-    # [Other command handlers remain the same...]
 
     async def run(self):
         """Start the bot"""
