@@ -1,125 +1,169 @@
-# Add these methods to your QuantumFlowBot class
+import os
+import sys
+import json
+import logging
+import time
+from datetime import datetime, timezone
+import asyncio
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, ContextTypes, CallbackQueryHandler
+from config import get_current_config
+from storage import BotStorage
 
-async def update_market_data(self):
-    """Update market data for trading pairs"""
-    try:
-        logger.info("Updating market data...")
-        
-        # Initialize market data structure if not exists
-        if 'market_data' not in self.state:
-            self.state['market_data'] = {}
-            
-        # Update data for each trading pair in config
-        for pair in self.config['pairs']:
-            try:
-                # Simulate market data update for now
-                # In production, replace with actual Bybit API calls
-                self.state['market_data'][pair] = {
-                    'last_price': 0.0,
-                    'bid': 0.0,
-                    'ask': 0.0,
-                    'volume': 0,
-                    'timestamp': datetime.now(timezone.utc).isoformat(),
-                    'active': True
-                }
-                
-                logger.info(f"Updated market data for {pair}")
-                
-            except Exception as pair_error:
-                logger.error(f"Error updating market data for {pair}: {str(pair_error)}")
-                
-        self.save_state()
-        await self.send_telegram_message("✅ Market data updated successfully")
-        
-    except Exception as e:
-        error_msg = f"Failed to update market data: {str(e)}"
-        logger.error(error_msg)
-        await self.send_telegram_message(f"⚠️ {error_msg}")
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('bot.log'),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger(__name__)
 
-async def check_positions(self):
-    """Check and update current positions"""
-    try:
-        logger.info("Checking positions...")
+class QuantumFlowBot:
+    def __init__(self):
+        # Initialize bot configuration
+        self.telegram_token = os.environ.get('TELEGRAM_BOT_TOKEN')
+        self.telegram_chat_id = os.environ.get('TELEGRAM_CHAT_ID')
         
-        # Initialize positions if not exists
-        if 'positions' not in self.state:
-            self.state['positions'] = {}
-            
-        # In production, replace with actual Bybit API calls
-        # For now, we'll just maintain the existing positions in state
+        if not self.telegram_token or not self.telegram_chat_id:
+            raise ValueError("Telegram credentials not found in environment variables!")
         
-        position_count = len(self.state['positions'])
-        logger.info(f"Current open positions: {position_count}")
+        # Initialize Telegram application
+        self.app = Application.builder().token(self.telegram_token).build()
         
-        if position_count > 0:
-            await self.send_telegram_message(
-                f"📊 Position Update\n"
-                f"Open Positions: {position_count}"
-            )
-            
-        self.save_state()
+        # Register command handlers
+        self.register_commands()
         
-    except Exception as e:
-        error_msg = f"Failed to check positions: {str(e)}"
-        logger.error(error_msg)
-        await self.send_telegram_message(f"⚠️ {error_msg}")
+        # Initialize state
+        self.state = {
+            'balance': 0.0,
+            'positions': {},
+            'daily_trades': 0,
+            'pnl': 0.0
+        }
 
-async def execute_strategy(self):
-    """Execute trading strategy"""
-    try:
-        logger.info("Executing trading strategy...")
+    def register_commands(self):
+        """Register all command handlers"""
+        commands = [
+            ('start', self.cmd_start, 'Start the bot'),
+            ('balance', self.cmd_balance, 'Check balance'),
+            ('status', self.cmd_status, 'Check status'),
+            ('positions', self.cmd_positions, 'View positions'),
+            ('help', self.cmd_help, 'Show help'),
+        ]
         
-        # Get current market data
-        market_data = self.state.get('market_data', {})
-        
-        # Get trading parameters
-        risk_per_trade = self.config['trading']['risk_per_trade']
-        max_daily_loss = self.config['trading']['max_daily_loss']
-        
-        # Check if we've hit daily limits
-        daily_pnl = self.state.get('pnl', 0)
-        if abs(daily_pnl) >= (self.state.get('balance', 0) * max_daily_loss):
-            await self.send_telegram_message(
-                "🛑 Daily loss limit reached. Trading stopped."
-            )
-            return
-            
-        # Check each trading pair
-        for pair, data in market_data.items():
-            # Implement your trading logic here
-            # For now, we'll just log the check
-            logger.info(f"Checking {pair} for trading opportunities...")
-            
-        self.save_state()
-        
-    except Exception as e:
-        error_msg = f"Failed to execute strategy: {str(e)}"
-        logger.error(error_msg)
-        await self.send_telegram_message(f"⚠️ {error_msg}")
+        for command, handler, description in commands:
+            self.app.add_handler(CommandHandler(command, handler))
+            logger.info(f"Registered command: /{command}")
 
-async def send_status_update(self):
-    """Send status update to Telegram"""
-    try:
+    async def cmd_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /start command"""
+        message = (
+            "🤖 *Welcome to QuantumFlow Elite Bot*\n\n"
+            "Available commands:\n"
+            "/balance - Check your balance\n"
+            "/status - View current status\n"
+            "/positions - View open positions\n"
+            "/help - Show this help message\n\n"
+            "Bot Status: Active ✅"
+        )
+        await update.message.reply_text(message, parse_mode='Markdown')
+
+    async def cmd_balance(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /balance command"""
+        balance = self.state.get('balance', 0.0)
+        message = (
+            "💰 *Balance Information*\n\n"
+            f"Current Balance: ${balance:,.2f}\n"
+            f"Time: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC"
+        )
+        await update.message.reply_text(message, parse_mode='Markdown')
+
+    async def cmd_status(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /status command"""
         status = {
             'time': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
-            'balance': self.state.get('balance', 0),
+            'balance': self.state.get('balance', 0.0),
             'positions': len(self.state.get('positions', {})),
             'daily_trades': self.state.get('daily_trades', 0),
-            'pnl': self.state.get('pnl', 0)
+            'pnl': self.state.get('pnl', 0.0)
         }
         
         message = (
-            f"📊 *Status Update*\n\n"
+            "📊 *Current Status*\n\n"
             f"🕒 Time: {status['time']} UTC\n"
             f"💰 Balance: ${status['balance']:,.2f}\n"
             f"📈 Open Positions: {status['positions']}\n"
             f"🎯 Today's Trades: {status['daily_trades']}\n"
             f"📗 P/L: ${status['pnl']:,.2f}"
         )
+        await update.message.reply_text(message, parse_mode='Markdown')
+
+    async def cmd_positions(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /positions command"""
+        positions = self.state.get('positions', {})
         
-        await self.send_telegram_message(message)
+        if not positions:
+            await update.message.reply_text("📈 No open positions currently.")
+            return
+            
+        message = "📊 *Open Positions*\n\n"
+        for symbol, pos in positions.items():
+            message += (
+                f"*{symbol}*\n"
+                f"Side: {pos.get('side', 'N/A')}\n"
+                f"Size: {pos.get('size', 0)}\n"
+                f"Entry: ${pos.get('entry_price', 0):,.2f}\n\n"
+            )
         
+        await update.message.reply_text(message, parse_mode='Markdown')
+
+    async def cmd_help(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /help command"""
+        help_message = (
+            "🤖 *QuantumFlow Elite Bot Help*\n\n"
+            "*Available Commands:*\n"
+            "/start - Start the bot\n"
+            "/balance - Check your balance\n"
+            "/status - View current status\n"
+            "/positions - View open positions\n"
+            "/help - Show this help message\n\n"
+            "For support, contact: @chibueze2345"
+        )
+        await update.message.reply_text(help_message, parse_mode='Markdown')
+
+    async def run(self):
+        """Start the bot"""
+        try:
+            logger.info("Starting bot...")
+            await self.app.initialize()
+            await self.app.start()
+            
+            # Send startup message
+            await self.app.bot.send_message(
+                chat_id=self.telegram_chat_id,
+                text="🚀 Bot is now online and ready!",
+                parse_mode='Markdown'
+            )
+            
+            # Run the bot
+            await self.app.run_polling(allowed_updates=Update.ALL_TYPES)
+            
+        except Exception as e:
+            logger.error(f"Bot error: {str(e)}")
+            raise
+        finally:
+            await self.app.stop()
+
+async def main():
+    try:
+        bot = QuantumFlowBot()
+        await bot.run()
     except Exception as e:
-        error_msg = f"Failed to send status update: {str(e)}"
-        logger.error(error_msg)
-        await self.send_telegram_message(f"⚠️ {error_msg}")
+        logger.error(f"Failed to start bot: {str(e)}")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    asyncio.run(main())
