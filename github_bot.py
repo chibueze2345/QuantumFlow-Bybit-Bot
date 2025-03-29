@@ -24,6 +24,11 @@ logger = logging.getLogger(__name__)
 
 class QuantumFlowBot:
     def __init__(self):
+        # Bot metadata
+        self.VERSION = '2.1.0'
+        self.CREATOR = 'chibueze2345'
+        self.LAST_UPDATED = '2025-03-29 18:13:19'
+        
         # Initialize bot configuration
         self.telegram_token = os.environ.get('TELEGRAM_BOT_TOKEN')
         self.telegram_chat_id = os.environ.get('TELEGRAM_CHAT_ID')
@@ -31,15 +36,19 @@ class QuantumFlowBot:
         if not self.telegram_token or not self.telegram_chat_id:
             raise ValueError("Telegram credentials not found in environment variables!")
         
-        # Initialize Telegram application - MOVED THIS EARLIER IN INIT
+        # Initialize Telegram application
         self.app = Application.builder().token(self.telegram_token).build()
+        
+        # Initialize storage
+        self.storage = BotStorage()
         
         # Initialize state
         self.state = {
             'balance': 0.0,
             'positions': {},
             'daily_trades': 0,
-            'pnl': 0.0
+            'pnl': 0.0,
+            'last_update': self.LAST_UPDATED
         }
         
         # Add running flag
@@ -56,20 +65,35 @@ class QuantumFlowBot:
             ('status', self.cmd_status, 'Check status'),
             ('positions', self.cmd_positions, 'View positions'),
             ('help', self.cmd_help, 'Show help'),
+            ('version', self.cmd_version, 'Show version info')
         ]
         
         for command, handler, description in commands:
             self.app.add_handler(CommandHandler(command, handler))
             logger.info(f"Registered command: /{command}")
 
+    async def cmd_version(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /version command"""
+        message = (
+            "🤖 *QuantumFlow Elite Bot Version Info*\n\n"
+            f"Version: {self.VERSION}\n"
+            f"Creator: @{self.CREATOR}\n"
+            f"Last Updated: {self.LAST_UPDATED} UTC\n"
+            f"Current Time: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC"
+        )
+        await update.message.reply_text(message, parse_mode='Markdown')
+
     async def cmd_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle /start command"""
         message = (
             "🤖 *Welcome to QuantumFlow Elite Bot*\n\n"
+            f"Version: {self.VERSION}\n"
+            f"Last Updated: {self.LAST_UPDATED} UTC\n\n"
             "Available commands:\n"
             "/balance - Check your balance\n"
             "/status - View current status\n"
             "/positions - View open positions\n"
+            "/version - Show version info\n"
             "/help - Show this help message\n\n"
             "Bot Status: Active ✅"
         )
@@ -133,6 +157,7 @@ class QuantumFlowBot:
             "/balance - Check your balance\n"
             "/status - View current status\n"
             "/positions - View open positions\n"
+            "/version - Show version info\n"
             "/help - Show this help message\n\n"
             "For support, contact: @chibueze2345"
         )
@@ -149,7 +174,8 @@ class QuantumFlowBot:
             # Send startup message
             await self.app.bot.send_message(
                 chat_id=self.telegram_chat_id,
-                text="🚀 Bot is now online and ready!",
+                text=f"🚀 QuantumFlow Elite Bot v{self.VERSION} is now online!\n"
+                     f"Last Updated: {self.LAST_UPDATED} UTC",
                 parse_mode='Markdown'
             )
             

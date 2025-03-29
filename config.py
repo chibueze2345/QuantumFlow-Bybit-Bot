@@ -1,6 +1,6 @@
 """
 QuantumFlow Elite Bybit Bot - Configuration
-Last Updated: 2025-03-29 12:35:04 UTC
+Last Updated: 2025-03-29 18:13:19 UTC
 Author: chibueze2345
 Version: 2.1.0
 """
@@ -15,7 +15,7 @@ ENV_TYPE = 'TESTNET' if USE_TESTNET else 'MAINNET'
 # Bot Version
 VERSION = '2.1.0'
 CREATOR = 'chibueze2345'
-LAST_UPDATED = '2025-03-29 12:35:04'
+LAST_UPDATED = '2025-03-29 18:13:19'
 
 # API Configuration
 API_CONFIG = {
@@ -73,17 +73,6 @@ PAIRS = {
         'risk_reward': 2.0,
         'min_volume': 100000
     }
-}
-
-# Trade Limit Tiers
-TRADE_LIMIT_TIERS = {
-    10: 4,    # $10-$24: 4 trades
-    25: 6,    # $25-$49: 6 trades
-    50: 8,    # $50-$99: 8 trades
-    100: 10,  # $100-$249: 10 trades
-    250: 12,  # $250-$499: 12 trades
-    500: 15,  # $500-$999: 15 trades
-    1000: 20  # $1000+: 20 trades
 }
 
 # Recovery System Configuration
