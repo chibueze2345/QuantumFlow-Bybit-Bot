@@ -1,0 +1,11 @@
+# Bybit API Credentials
+USE_TESTNET=true
+BYBIT_TESTNET_API_KEY=your_testnet_api_key_here
+BYBIT_TESTNET_API_SECRET=your_testnet_api_secret_here
+
+# Telegram Configuration
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
+TELEGRAM_CHAT_ID=your_telegram_chat_id_here
+
+# GitHub Storage
+GITHUB_TOKEN=your_github_token_here
