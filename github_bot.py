@@ -1,22 +1,25 @@
 """
 QuantumFlow Elite Bybit Bot - Main Bot File
-Last Updated: 2025-03-29 19:07:51 UTC
+Last Updated: 2025-03-29 19:12:43 UTC
 Author: chibueze2345
 Version: 2.1.1
 """
 
 import os
 import sys
-import json
-import signal
 import logging
-import time
-from datetime import datetime, timezone
 import asyncio
-from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes
+from datetime import datetime, timezone
+from telegram.ext import Application, CommandHandler
 from config import get_current_config
 from storage import BotStorage
+from commands import (
+    cmd_start,
+    cmd_balance,
+    cmd_status,
+    cmd_positions,
+    cmd_help
+)
 
 # Configure logging
 logging.basicConfig(
@@ -31,20 +34,24 @@ logger = logging.getLogger(__name__)
 
 class QuantumFlowBot:
     def __init__(self):
-        # Bot metadata
         self.VERSION = '2.1.1'
         self.CREATOR = 'chibueze2345'
-        self.LAST_UPDATED = '2025-03-29 19:07:51'
+        self.LAST_UPDATED = '2025-03-29 19:12:43'
         
         # Initialize bot configuration
         self.telegram_token = os.environ.get('TELEGRAM_BOT_TOKEN')
-        self.telegram_chat_id = os.environ.get('TELEGRAM_CHAT_ID')
-        
-        if not self.telegram_token or not self.telegram_chat_id:
-            raise ValueError("Telegram credentials not found in environment variables!")
+        if not self.telegram_token:
+            raise ValueError("TELEGRAM_BOT_TOKEN not found in environment variables!")
         
         # Initialize storage
         self.storage = BotStorage()
+        
+        # Initialize application
+        self.app = None
+        self.running = False
+        
+        # Load configuration
+        self.config = get_current_config()
         
         # Initialize state
         self.state = {
@@ -54,15 +61,6 @@ class QuantumFlowBot:
             'pnl': 0.0,
             'last_update': self.LAST_UPDATED
         }
-        
-        # Add running flag
-        self.running = False
-        
-        # Initialize application to None
-        self.app = None
-        
-        # Initialize event loop
-        self.loop = None
 
     async def initialize(self):
         """Initialize the bot application"""
@@ -76,33 +74,44 @@ class QuantumFlowBot:
             raise
 
     def register_commands(self):
-        """Register all command handlers"""
+        """Register command handlers"""
         if not self.app:
             raise RuntimeError("Application not initialized")
-            
+        
+        # Register commands
         commands = [
-            ('start', self.cmd_start, 'Start the bot'),
-            ('balance', self.cmd_balance, 'Check balance'),
-            ('status', self.cmd_status, 'Check status'),
-            ('positions', self.cmd_positions, 'View positions'),
-            ('help', self.cmd_help, 'Show help'),
-            ('version', self.cmd_version, 'Show version info')
+            ('start', cmd_start),
+            ('balance', cmd_balance),
+            ('status', cmd_status),
+            ('positions', cmd_positions),
+            ('help', cmd_help)
         ]
         
-        for command, handler, description in commands:
+        for command, handler in commands:
             self.app.add_handler(CommandHandler(command, handler))
             logger.info(f"Registered command: /{command}")
 
-    async def cmd_version(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Handle /version command"""
-        message = (
-            "🤖 *QuantumFlow Elite Bot Version Info*\n\n"
-            f"Version: {self.VERSION}\n"
-            f"Creator: @{self.CREATOR}\n"
-            f"Last Updated: {self.LAST_UPDATED} UTC\n"
-            f"Current Time: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC"
-        )
-        await update.message.reply_text(message, parse_mode='Markdown')
+    async def start(self):
+        """Start the bot"""
+        try:
+            logger.info("Starting bot...")
+            self.running = True
+            
+            # Initialize the application
+            await self.initialize()
+            
+            # Start the application
+            await self.app.start()
+            
+            # Keep the bot running
+            while self.running:
+                await asyncio.sleep(1)
+                
+        except Exception as e:
+            logger.error(f"Error running bot: {str(e)}")
+            raise
+        finally:
+            await self.shutdown()
 
     async def shutdown(self):
         """Gracefully shutdown the bot"""
@@ -116,54 +125,24 @@ class QuantumFlowBot:
                 logger.info("Bot stopped successfully")
             except Exception as e:
                 logger.error(f"Error during shutdown: {str(e)}")
-        
-    async def run(self):
-        """Start the bot"""
-        try:
-            logger.info("Starting bot...")
-            self.running = True
-            
-            # Initialize the application
-            await self.initialize()
-            
-            # Set up signal handlers
-            for sig in (signal.SIGINT, signal.SIGTERM):
-                self.loop.add_signal_handler(sig, lambda s=sig: asyncio.create_task(self.handle_signal(s)))
-            
-            # Start the application
-            await self.app.start()
-            
-            # Run until stopped
-            while self.running:
-                await asyncio.sleep(1)
-                
-        except Exception as e:
-            logger.error(f"Error running bot: {str(e)}")
-            raise
-        finally:
-            await self.shutdown()
 
-    async def handle_signal(self, signal):
-        """Handle shutdown signals"""
-        logger.info(f"Received signal {signal.name}...")
-        await self.shutdown()
-
-    def start(self):
-        """Entry point to start the bot"""
-        try:
-            self.loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(self.loop)
-            self.loop.run_until_complete(self.run())
-        except Exception as e:
-            logger.error(f"Fatal error: {str(e)}")
-            sys.exit(1)
-        finally:
-            try:
-                if self.loop and not self.loop.is_closed():
-                    self.loop.close()
-            except Exception as e:
-                logger.error(f"Error closing event loop: {str(e)}")
+def main():
+    """Main entry point"""
+    bot = QuantumFlowBot()
+    
+    # Set up asyncio event loop
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    
+    try:
+        loop.run_until_complete(bot.start())
+    except KeyboardInterrupt:
+        logger.info("Received keyboard interrupt")
+    except Exception as e:
+        logger.error(f"Fatal error: {str(e)}")
+    finally:
+        loop.run_until_complete(bot.shutdown())
+        loop.close()
 
 if __name__ == "__main__":
-    bot = QuantumFlowBot()
-    bot.start()
+    main()

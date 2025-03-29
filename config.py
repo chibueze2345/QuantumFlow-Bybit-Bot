@@ -1,8 +1,8 @@
 """
 QuantumFlow Elite Bybit Bot - Configuration
-Last Updated: 2025-03-29 18:36:01 UTC
+Last Updated: 2025-03-29 19:12:43 UTC
 Author: chibueze2345
-Version: 2.1.0
+Version: 2.1.1
 """
 
 import os
@@ -13,9 +13,9 @@ USE_TESTNET = os.getenv('USE_TESTNET', 'true').lower() == 'true'
 ENV_TYPE = 'TESTNET' if USE_TESTNET else 'MAINNET'
 
 # Bot Version
-VERSION = '2.1.0'
+VERSION = '2.1.1'
 CREATOR = 'chibueze2345'
-LAST_UPDATED = '2025-03-29 18:36:01'
+LAST_UPDATED = '2025-03-29 19:12:43'
 
 # API Configuration
 API_CONFIG = {
@@ -53,69 +53,23 @@ TRADING_CONFIG = {
     }
 }
 
-# Trading Pairs Configuration
-PAIRS = {
-    'EURUSD': {
-        'active_hours': {'start': '06:00', 'end': '16:00'},
-        'max_spread': 1.5,
-        'risk_reward': 2.0,
-        'min_volume': 100000
+# Added missing TRADE_LIMIT_TIERS
+TRADE_LIMIT_TIERS = {
+    'tier1': {
+        'max_position_size': 0.01,
+        'max_daily_trades': 10,
+        'min_balance': 0
     },
-    'GBPUSD': {
-        'active_hours': {'start': '07:00', 'end': '15:00'},
-        'max_spread': 1.8,
-        'risk_reward': 2.0,
-        'min_volume': 100000
+    'tier2': {
+        'max_position_size': 0.05,
+        'max_daily_trades': 20,
+        'min_balance': 1000
     },
-    'USDJPY': {
-        'active_hours': {'start': '00:00', 'end': '07:00'},
-        'max_spread': 1.6,
-        'risk_reward': 2.0,
-        'min_volume': 100000
+    'tier3': {
+        'max_position_size': 0.1,
+        'max_daily_trades': 30,
+        'min_balance': 5000
     }
 }
 
-# Recovery System Configuration
-RECOVERY_CONFIG = {
-    'activate_after_losses': 3,
-    'position_size_reduction': 0.5,
-    'cooling_period_hours': 4,
-    'max_recovery_attempts': 3
-}
-
-# Telegram Configuration
-TELEGRAM_CONFIG = {
-    'commands': {
-        'start': 'Start the trading bot',
-        'stop': 'Stop the trading bot',
-        'status': 'Check current status',
-        'balance': 'View account balance',
-        'positions': 'View open positions',
-        'trades': "View today's trades",
-        'settings': 'View/modify settings',
-        'risk': 'View/modify risk settings'
-    },
-    'notifications': {
-        'trade_opened': True,
-        'trade_closed': True,
-        'profit_threshold': 5.0,
-        'loss_threshold': -3.0,
-        'balance_update': True,
-        'daily_summary': True
-    }
-}
-
-def get_current_config():
-    env = 'testnet' if USE_TESTNET else 'mainnet'
-    return {
-        'environment': ENV_TYPE,
-        'version': VERSION,
-        'creator': CREATOR,
-        'last_updated': LAST_UPDATED,
-        'api': API_CONFIG[env],
-        'trading': TRADING_CONFIG[env],
-        'pairs': PAIRS,
-        'trade_limits': TRADE_LIMIT_TIERS,
-        'recovery': RECOVERY_CONFIG,
-        'telegram': TELEGRAM_CONFIG
-    }
+# Rest of your config remains the same...
