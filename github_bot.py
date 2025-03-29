@@ -1,8 +1,8 @@
 """
 QuantumFlow Elite Bybit Bot - Main Bot File
-Last Updated: 2025-03-29 19:00:46 UTC
+Last Updated: 2025-03-29 19:07:51 UTC
 Author: chibueze2345
-Version: 2.1.0
+Version: 2.1.1
 """
 
 import os
@@ -31,9 +31,10 @@ logger = logging.getLogger(__name__)
 
 class QuantumFlowBot:
     def __init__(self):
-        self.VERSION = '2.1.0'
+        # Bot metadata
+        self.VERSION = '2.1.1'
         self.CREATOR = 'chibueze2345'
-        self.LAST_UPDATED = '2025-03-29 19:00:46'
+        self.LAST_UPDATED = '2025-03-29 19:07:51'
         
         # Initialize bot configuration
         self.telegram_token = os.environ.get('TELEGRAM_BOT_TOKEN')
@@ -54,125 +55,68 @@ class QuantumFlowBot:
             'last_update': self.LAST_UPDATED
         }
         
+        # Add running flag
         self.running = False
+        
+        # Initialize application to None
         self.app = None
+        
+        # Initialize event loop
+        self.loop = None
 
     async def initialize(self):
         """Initialize the bot application"""
         try:
             self.app = Application.builder().token(self.telegram_token).build()
             await self.app.initialize()
-            await self.register_commands()
+            self.register_commands()
             logger.info("Bot initialized successfully")
         except Exception as e:
-            logger.error(f"Initialization error: {str(e)}")
+            logger.error(f"Failed to initialize bot: {str(e)}")
             raise
 
-    async def register_commands(self):
+    def register_commands(self):
         """Register all command handlers"""
         if not self.app:
             raise RuntimeError("Application not initialized")
-        
-        # Define command handlers
-        async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-            message = (
-                "🤖 *Welcome to QuantumFlow Elite Bot*\n\n"
-                f"Version: {self.VERSION}\n"
-                f"Last Updated: {self.LAST_UPDATED} UTC\n\n"
-                "Available commands:\n"
-                "/balance - Check your balance\n"
-                "/status - View current status\n"
-                "/positions - View open positions\n"
-                "/version - Show version info\n"
-                "/help - Show this help message\n\n"
-                "Bot Status: Active ✅"
-            )
-            await update.message.reply_text(message, parse_mode='Markdown')
-
-        async def cmd_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
-            balance = self.state.get('balance', 0.0)
-            message = (
-                "💰 *Balance Information*\n\n"
-                f"Current Balance: ${balance:,.2f}\n"
-                f"Time: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC"
-            )
-            await update.message.reply_text(message, parse_mode='Markdown')
-
-        async def cmd_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
-            status = {
-                'time': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
-                'balance': self.state.get('balance', 0.0),
-                'positions': len(self.state.get('positions', {})),
-                'daily_trades': self.state.get('daily_trades', 0),
-                'pnl': self.state.get('pnl', 0.0)
-            }
             
-            message = (
-                "📊 *Current Status*\n\n"
-                f"🕒 Time: {status['time']} UTC\n"
-                f"💰 Balance: ${status['balance']:,.2f}\n"
-                f"📈 Open Positions: {status['positions']}\n"
-                f"🎯 Today's Trades: {status['daily_trades']}\n"
-                f"📗 P/L: ${status['pnl']:,.2f}"
-            )
-            await update.message.reply_text(message, parse_mode='Markdown')
-
-        async def cmd_positions(update: Update, context: ContextTypes.DEFAULT_TYPE):
-            positions = self.state.get('positions', {})
-            
-            if not positions:
-                await update.message.reply_text("📈 No open positions currently.")
-                return
-                
-            message = "📊 *Open Positions*\n\n"
-            for symbol, pos in positions.items():
-                message += (
-                    f"*{symbol}*\n"
-                    f"Side: {pos.get('side', 'N/A')}\n"
-                    f"Size: {pos.get('size', 0)}\n"
-                    f"Entry: ${pos.get('entry_price', 0):,.2f}\n\n"
-                )
-            
-            await update.message.reply_text(message, parse_mode='Markdown')
-
-        async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
-            help_message = (
-                "🤖 *QuantumFlow Elite Bot Help*\n\n"
-                "*Available Commands:*\n"
-                "/start - Start the bot\n"
-                "/balance - Check your balance\n"
-                "/status - View current status\n"
-                "/positions - View open positions\n"
-                "/version - Show version info\n"
-                "/help - Show this help message\n\n"
-                f"For support, contact: @{self.CREATOR}"
-            )
-            await update.message.reply_text(help_message, parse_mode='Markdown')
-
-        async def cmd_version(update: Update, context: ContextTypes.DEFAULT_TYPE):
-            message = (
-                "🤖 *QuantumFlow Elite Bot Version Info*\n\n"
-                f"Version: {self.VERSION}\n"
-                f"Creator: @{self.CREATOR}\n"
-                f"Last Updated: {self.LAST_UPDATED} UTC\n"
-                f"Current Time: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC"
-            )
-            await update.message.reply_text(message, parse_mode='Markdown')
-
-        # Register commands
         commands = [
-            ('start', cmd_start),
-            ('balance', cmd_balance),
-            ('status', cmd_status),
-            ('positions', cmd_positions),
-            ('help', cmd_help),
-            ('version', cmd_version)
+            ('start', self.cmd_start, 'Start the bot'),
+            ('balance', self.cmd_balance, 'Check balance'),
+            ('status', self.cmd_status, 'Check status'),
+            ('positions', self.cmd_positions, 'View positions'),
+            ('help', self.cmd_help, 'Show help'),
+            ('version', self.cmd_version, 'Show version info')
         ]
         
-        for command, handler in commands:
+        for command, handler, description in commands:
             self.app.add_handler(CommandHandler(command, handler))
             logger.info(f"Registered command: /{command}")
 
+    async def cmd_version(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /version command"""
+        message = (
+            "🤖 *QuantumFlow Elite Bot Version Info*\n\n"
+            f"Version: {self.VERSION}\n"
+            f"Creator: @{self.CREATOR}\n"
+            f"Last Updated: {self.LAST_UPDATED} UTC\n"
+            f"Current Time: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC"
+        )
+        await update.message.reply_text(message, parse_mode='Markdown')
+
+    async def shutdown(self):
+        """Gracefully shutdown the bot"""
+        logger.info("Initiating bot shutdown...")
+        self.running = False
+        
+        if self.app:
+            try:
+                await self.app.stop()
+                await self.app.shutdown()
+                logger.info("Bot stopped successfully")
+            except Exception as e:
+                logger.error(f"Error during shutdown: {str(e)}")
+        
     async def run(self):
         """Start the bot"""
         try:
@@ -182,61 +126,44 @@ class QuantumFlowBot:
             # Initialize the application
             await self.initialize()
             
+            # Set up signal handlers
+            for sig in (signal.SIGINT, signal.SIGTERM):
+                self.loop.add_signal_handler(sig, lambda s=sig: asyncio.create_task(self.handle_signal(s)))
+            
             # Start the application
             await self.app.start()
             
-            # Send startup message
-            await self.app.bot.send_message(
-                chat_id=self.telegram_chat_id,
-                text=f"🚀 QuantumFlow Elite Bot v{self.VERSION} is now online!\n"
-                     f"Last Updated: {self.LAST_UPDATED} UTC",
-                parse_mode='Markdown'
-            )
-            
-            # Run the bot
-            await self.app.run_polling(allowed_updates=Update.ALL_TYPES)
-            
+            # Run until stopped
+            while self.running:
+                await asyncio.sleep(1)
+                
         except Exception as e:
-            logger.error(f"Bot error: {str(e)}")
+            logger.error(f"Error running bot: {str(e)}")
             raise
         finally:
-            self.running = False
-            if self.app:
-                await self.app.stop()
-            logger.info("Bot stopped successfully")
+            await self.shutdown()
 
-async def main():
-    """Main entry point"""
-    bot = None
-    try:
-        bot = QuantumFlowBot()
-        
-        # Setup signal handlers
-        def signal_handler(sig, frame):
-            logger.info(f"Received signal {sig}")
-            if bot.running:
-                logger.info("Initiating graceful shutdown...")
-                bot.running = False
-        
-        signal.signal(signal.SIGINT, signal_handler)
-        signal.signal(signal.SIGTERM, signal_handler)
-        
-        # Run the bot
-        await bot.run()
-        
-    except Exception as e:
-        logger.error(f"Failed to start bot: {str(e)}")
-        if bot and bot.running and bot.app:
+    async def handle_signal(self, signal):
+        """Handle shutdown signals"""
+        logger.info(f"Received signal {signal.name}...")
+        await self.shutdown()
+
+    def start(self):
+        """Entry point to start the bot"""
+        try:
+            self.loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(self.loop)
+            self.loop.run_until_complete(self.run())
+        except Exception as e:
+            logger.error(f"Fatal error: {str(e)}")
+            sys.exit(1)
+        finally:
             try:
-                await bot.app.stop()
-            except Exception as stop_error:
-                logger.error(f"Error during shutdown: {stop_error}")
-        sys.exit(1)
+                if self.loop and not self.loop.is_closed():
+                    self.loop.close()
+            except Exception as e:
+                logger.error(f"Error closing event loop: {str(e)}")
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        logger.info("Bot stopped by user")
-    except Exception as e:
-        logger.error(f"Unexpected error: {str(e)}")
+    bot = QuantumFlowBot()
+    bot.start()
